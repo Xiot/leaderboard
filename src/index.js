@@ -1,9 +1,11 @@
 /* eslint-env browser */
 
-const {DateTime, Duration} = luxon;
+import {DateTime, Duration} from 'luxon';
+import {Chart} from 'chart.js';
 
 const PARSE_TIME = Date.now();
 
+// import {stats} from 'https://portal.xiot.ca/aoc-2020.js'
 const statsJsonUriLocal = 'https://raw.githubusercontent.com/Xiot/xiot.github.io/master/2020.json';
 const statsJsonUri = 'https://portal.xiot.ca/aoc-2020.json';
 const trophySvg = createTrophy();
@@ -12,16 +14,31 @@ const startOffset = (9 * 60 + 30) * 60 * 1000;
 
 window.onload = load;
 
+// if (import.meta.hot) {
+//     console.log('in hot', import.meta.hot, import.meta.hot.isLocked);
+//     import.meta.hot.accept(args => {
+//         console.log('a', args);
+//         initialize(stats);
+//     });
+// }
+
+let dataFetch = fetch(statsJsonUri)
+    .then(response => response.json())
+    .catch(ex => fetch(statsJsonUriLocal))
+
 function load() {
 
     if (window.outerWidth < 800) {
         document.getElementById('root').classList.add('phone')
     }
 
-    fetch(statsJsonUri)
-        .catch(ex => fetch(statsJsonUriLocal))
-        .then(x => x.json())
-        .then(data => initialize(data));
+
+    // fetch(statsJsonUri)
+    //     .then(response => response.json())
+    // Promise.resolve(stats)
+    dataFetch
+        .then(data => transformData(data))
+        .then(initialize)
 }
 
 function transformData(input) {
@@ -152,7 +169,7 @@ function buildMemberDayStats(member, day) {
 
     const buildStar = (ts, startTime, star) => {
         if (!ts) { return undefined; }
-        const duration = DateTime.fromMillis(ts).diff(startTime).as('milliseconds');
+        const duration = ts - startTime;
         return {
             index: star,
             timestamp: ts,
@@ -469,9 +486,8 @@ const getDayPoints = (member, opts) => member.days.reduce((acc, day) => {
 }, undefined)
 
 
-function initialize(data) {
+function initialize(members) {
 
-    const members = transformData(data);
     document.getElementById('medals').appendChild(
         buildMedalGrid(members)
     )
@@ -717,17 +733,17 @@ function getStarTimestamp(member, day, star) {
     return text ? parseInt(text, 10) * 1000 : undefined;
 }
 
+const FIRST_DAY_TS = 1606780800000; // 2020-12-02T00:00:00-5:00
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
+const OFFSET_930 = (9 * 60 + 30) * 60 * 1000;
+
 function getDayStartTime(day, ts) {
     if (!ts) return undefined;
 
-    if(day === 25) return DateTime.fromMillis(1609009200000); //2020-12-26 2pm
+    if(day === 25) return 1609009200000; //2020-12-26 2pm
+    const startOfDay = FIRST_DAY_TS + (day -1) * MS_IN_DAY;
+    const secondStart = startOfDay + OFFSET_930;
 
-    const startOfDay = DateTime.local(2020, 12, 1)
-        .setZone('America/Toronto', {keepLocalTime: true})
-        .plus({days: day - 1});
-
-    const secondStart = startOfDay.plus({hours: 9, minutes: 30});
-    const solveTime = DateTime.fromMillis(ts);
     return ts > secondStart
         ? secondStart
         : startOfDay;
