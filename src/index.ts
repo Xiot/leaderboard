@@ -1,7 +1,10 @@
 /* eslint-env browser */
 
 import {DateTime, Duration} from 'luxon';
-import {Chart} from 'chart.js';
+import {Chart, ChartConfiguration, Point} from 'chart.js';
+
+import type {AocLeaderboard, AocMember} from './aoc';
+import type {Member, MemberDay, Star} from './types';
 
 const PARSE_TIME = Date.now();
 
@@ -14,22 +17,18 @@ const startOffset = (9 * 60 + 30) * 60 * 1000;
 
 window.onload = load;
 
-// if (import.meta.hot) {
-//     console.log('in hot', import.meta.hot, import.meta.hot.isLocked);
-//     import.meta.hot.accept(args => {
-//         console.log('a', args);
-//         initialize(stats);
-//     });
-// }
-
 let dataFetch = fetch(statsJsonUri)
     .then(response => response.json())
     .catch(ex => fetch(statsJsonUriLocal))
 
+function element(id: string): HTMLElement {
+    return document.getElementById(id)!;
+}
+
 function load() {
 
     if (window.outerWidth < 800) {
-        document.getElementById('root').classList.add('phone')
+        element('root').classList.add('phone')
     }
 
 
@@ -41,7 +40,7 @@ function load() {
         .then(initialize)
 }
 
-function transformData(input) {
+function transformData(input: AocLeaderboard) {
     const members = Object.values(input.members)
         .map(transformMemberData)
         .filter(x => x.lastAttempted >= 0);
@@ -49,58 +48,67 @@ function transformData(input) {
     applyOverrides(members);
     populatePositions(members);
     calculateLocalScore(members);
-
+console.log(members);
     return members;
 }
 
-const OVERRIDES = [
+type Override = (m: Member) => void;
+
+const OVERRIDES: Override[] = [
     // Everyone gets gold for 25.2
     m => {
         const lastDay = m.days[24];
-        if (!lastDay?.star2) return;
+        if (!lastDay?.star1 || !lastDay?.star2) return;
         lastDay.star2.timestamp = lastDay.star1.timestamp;
         lastDay.star2.duration = 1000;
     },
     // Calculate didGiveUp
     m => {
         m.days.forEach(day => {
-            if (didGiveUp(m, day.day, 1)) {
+            if (day.star1 && didGiveUp(m, day.day, 1)) {
                 day.star1.gaveUp = true;
             }
-            if (didGiveUp(m, day.day, 2)) {
+            if (day.star2 && didGiveUp(m, day.day, 2)) {
                 day.star2.gaveUp = true;
             }
         })
     }
 ]
 
-function applyOverrides(members) {
+function applyOverrides(members: Member[]) {
     members.forEach(m => {
         OVERRIDES.forEach(fn => fn(m));
     })
 }
 
-function byNumber(l, r) {
+function byNumber(l: number | void, r: number | void) {
+    if (l == null && r == null) return 0;
+    if (l == null && r != null) return 1;
+    if (l != null && r == null) return -1;
+    // @ts-ignore - l and r are garenteed to have a value.
     return l - r;
 }
+function byNumberReverse(l: number | void, r: number | void): number {
+    return -byNumber(l, r);
+}
 
-function populatePositions(members) {
+function populatePositions(members: Member[]) {
 
     range(25).forEach(day => {
 
         const data1 = members
             .map(m => m.days[day].star1)
-            .filter(s => s && !s.gaveUp)
+            .filter((s): s is Star => !!s && s.gaveUp !== true)
             .map(s => s.duration)
             .sort(byNumber);
 
         const data2 = members
             .map(m => m.days[day].star2)
-            .filter(s => s && !s.gaveUp)
+            .filter((s): s is Star => !!s && s.gaveUp !== true)
             .map(s => s.duration)
             .sort(byNumber);
 
-        function modifyStar(star, sortedDurations) {
+        function modifyStar(star: Star | void, sortedDurations: number[]) {
             if (!star) return;
             const position = sortedDurations.indexOf(star.duration);
             star.position = position === -1 ? members.length : position;
@@ -113,8 +121,8 @@ function populatePositions(members) {
     })
 }
 
-function calculateLocalScore(members) {
-    const positionScore = star =>
+function calculateLocalScore(members: Member[]) {
+    const positionScore = (star?: Star) =>
         star == null
             ? 0
             : star.gaveUp
@@ -124,29 +132,25 @@ function calculateLocalScore(members) {
     for (let i = 0; i < members.length; i++) {
         let sum = 0;
         let lastCompleted = -1;
-        range(25).forEach(day => {
-            const star1 = positionScore(members[i].days[day].star1);
-            const star2 = positionScore(members[i].days[day].star2);
+        range(25).forEach(dayIndex => {
+
+            const day = members[i].days[dayIndex];
+            // if (!day) return;
+            const star1 = positionScore(day.star1);
+            const star2 = positionScore(day.star2);
             sum += star1 + star2;
-            members[i].days[day].score = star1 + star2;
+            // console.log(members[i].name, dayIndex, day, star1, star2)
+            day.score = star1 + star2;
         })
         members[i].score = sum;
     }
 }
 
-function membersByStar(day, star) {
-    return (l, r) => {
-        const left = starDuration(l.days[day][`star${star}`]);
-        const right = starDuration(r.days[day][`star${star}`]);
-        return left - right;
-    }
-}
-
-function membersByTotalScore(l, r) {
+function membersByTotalScore(l: Member, r: Member) {
     return r.score - l.score;
 }
 
-function transformMemberData(member) {
+function transformMemberData(member: AocMember): Member {
     return {
         name: member.name,
         days: range(25).map(index => {
@@ -157,18 +161,24 @@ function transformMemberData(member) {
                 return day;
             }
             return last;
-        }, -1)
+        }, -1),
+        score: 0
     }
 }
 
-function buildMemberDayStats(member, day) {
+function buildMemberDayStats(member: AocMember, day: number): MemberDay {
 
     const star1Timestamp = getStarTimestamp(member, day, 1);
     const star2Timestamp = getStarTimestamp(member, day, 2);
     const startTime = getDayStartTime(day, star1Timestamp);
 
-    const buildStar = (ts, startTime, star) => {
-        if (!ts) { return undefined; }
+    if (member.name === 'Chris Thomas' && day === 4) {
+        console.log(startTime)
+        console.log(1607058000000)
+    }
+
+    const buildStar = (ts: number | void, startTime: number | void, star: number) => {
+        if (!ts || !startTime) { return undefined; }
         const duration = ts - startTime;
         return {
             index: star,
@@ -181,6 +191,7 @@ function buildMemberDayStats(member, day) {
         day,
         star1: buildStar(star1Timestamp, startTime, 1),
         star2: buildStar(star2Timestamp, startTime, 2),
+        score: 0
     }
 }
 
@@ -193,25 +204,32 @@ const colors = [
     'rgba(255, 159, 64, 1)'
 ];
 
-const last = arr => arr[arr.length -1];
+const last = <T>(arr: T[]) : T => arr[arr.length -1];
 
-let activeChart = undefined;
+let activeChart: Chart | void = undefined;
 
-function minOf(arr, accessor = x => x) {
-    return arr.reduce((min, current) => {
+function minOf<T>(arr: T[]): T | void;
+function minOf<T, K>(arr: T[], accessor: (item: T) => K): K | void;
+function minOf<T>(arr: T[], accessor: (item: T) => any | void = x => x) {
+    type Accumulator = {
+        value?: any,
+        item?: T
+    }
+
+    return arr.reduce<Accumulator>((min, current) => {
 
         const value = accessor(current);
         if (value === undefined) return min;
-        if (!min || min.value > value) {
+        if (!min.value || min.value > value) {
             return {value, item: current}
         }
         return min;
-    }, undefined)?.value;
+    }, {value: undefined, item: undefined})?.value;
 }
 
-function buildDifferenceChart(el, members) {
+function buildDifferenceChart(el: HTMLElement, members: Member[]) {
 
-    const isActiveMember = member => member.score > 50;
+    const isActiveMember = (member: Member) => member.score > 50;
 
     const allPoints = members.filter(isActiveMember).map(x => getPoints(x, {allowEmpty: true}));
     const minOfDay = range(25).map(i => {
@@ -226,7 +244,7 @@ function buildDifferenceChart(el, members) {
                 const data = isActiveMember(m)
                     ? getPoints(m).map((value, index) => {
                         const min = minOfDay[index];
-                        if (min === undefined) { return undefined; }
+                        if (min === undefined || value == null) { return undefined; }
                         return value - min;
                     })
                     : [];
@@ -243,7 +261,7 @@ function buildDifferenceChart(el, members) {
     })
 }
 
-function buildRankChart(el, members) {
+function buildRankChart(el: HTMLElement, members: Member[]) {
 
     const memberPoints = members.map(m => {
         return {
@@ -253,11 +271,11 @@ function buildRankChart(el, members) {
     });
 
     const pointsPerDay = range(25).map(i => {
-        return memberPoints.map(x => x.points[i]).sort((l, r) => r - l);
+        return memberPoints.map(x => x.points[i]).sort(byNumberReverse);
     })
     const positions = memberPoints.map((mp, i) => {
         const member = mp.member;
-        const points = memberPoints.find(x => x.member === mp.member).points;
+        const points = memberPoints.find(x => x.member === mp.member)!.points;
 
         const d = range(25).map(d => {
             const value = points[d];
@@ -303,7 +321,7 @@ function buildRankChart(el, members) {
     })
 }
 
-function buildPointChart(el, members) {
+function buildPointChart(el: HTMLElement, members: Member[]) {
 
     createChart('Points', {
         type: 'line',
@@ -324,14 +342,14 @@ function buildPointChart(el, members) {
     })
 }
 
-function createChart(title, config) {
-    const ctx = document.getElementById('rank-chart').getContext('2d');
+function createChart(title: string, config: ChartConfiguration) {
+    const ctx = (element('rank-chart')! as HTMLCanvasElement).getContext('2d')!;
     activeChart && activeChart.destroy();
 
     return activeChart = new Chart(ctx, {
         ...config,
         options: {
-            animation: null,
+            animation: undefined,
             maintainAspectRatio: false,
             title: {display: true, text: title, padding: 20},
             legend: {display: true, position: 'left'},
@@ -340,11 +358,11 @@ function createChart(title, config) {
     })
 }
 
-function buildPointsByDeltaChart(el, members) {
+function buildPointsByDeltaChart(el: HTMLElement, members: Member[]) {
 
     const delta = members.map(m => {
         return m.days.map(d => {
-            const t1 = d.star1?.timestamp;
+            const t1 = d.star1?.timestamp!;
             const t2 = d.star2?.timestamp;
             return t2 ? t2 - t1 : Number.MAX_SAFE_INTEGER;
         })
@@ -367,7 +385,7 @@ function buildPointsByDeltaChart(el, members) {
                 ? undefined
                 : (acc[day - 1] ?? 0) + (score?.score ?? 0)
             return [...acc, totalScore]
-        }, []);
+        }, [] as (number | undefined)[]);
     })
 
     createChart(`Points by Delta`, {
@@ -390,7 +408,7 @@ function buildPointsByDeltaChart(el, members) {
 
 }
 
-function buildRollingAverageChart(el, members) {
+function buildRollingAverageChart(el: HTMLElement, members: Member[]) {
 
     const AVG_SIZE = 5;
 
@@ -417,7 +435,7 @@ function buildRollingAverageChart(el, members) {
     })
 }
 
-const avgLast = (arr, index,  count = 5) => {
+const avgLast = (arr: PointArray, index: number,  count = 5) => {
     const actualCount = index + 1 < count ? index + 1 : count;
     if (actualCount === 0) return 0;
     let sum = 0;
@@ -428,11 +446,11 @@ const avgLast = (arr, index,  count = 5) => {
     return sum / actualCount;
 }
 
-function buildAveragePointsChart(el, members) {
+function buildAveragePointsChart(el: HTMLElement, members: Member[]) {
 
     const allPoints = members
         .map(x => getPoints(x, {allowEmpty: false}))
-        .map((points, i) => points.map((p, i) => p / (i+1)));
+        .map((points, i) => points.map((p, i) => (p ?? 0) / (i+1)));
 
     createChart('Average Points', {
         type: 'line',
@@ -453,24 +471,27 @@ function buildAveragePointsChart(el, members) {
         }
     })
 }
+type PointArray = (number | undefined)[]
+const getPoints = (member: Member, opts?: {allowEmpty: boolean}): PointArray => {
+    type Accumulator = void | PointArray
 
-const getPoints = (member, opts) => member.days.reduce((acc, day) => {
-    const {allowEmpty = false} = (opts ?? {});
-    if (acc === undefined) {
-        return [day.score];
-    } else {
-        const previousScore = last(acc.filter(Boolean));
-        const score = day.score
-            ? day.score
-            : day.day <= member.lastAttempted
-                ? 0
-                : allowEmpty ? 0 : undefined;
-        return [...acc, (score != null && previousScore) ? previousScore + score : undefined];
-    }
-}, undefined)
+    return member.days.reduce<Accumulator>((acc, day) => {
+        const {allowEmpty = false} = (opts ?? {});
+        if (acc === undefined) {
+            return [day.score];
+        } else {
+            const previousScore = last(acc.filter(Boolean));
+            const score = day.score
+                ? day.score
+                : day.day <= member.lastAttempted
+                    ? 0
+                    : allowEmpty ? 0 : undefined;
+            return [...acc, (score != null && previousScore) ? previousScore + score : undefined];
+        }
+    }, undefined) as PointArray
+}
 
-
-const getDayPoints = (member, opts) => member.days.reduce((acc, day) => {
+const getDayPoints = (member: Member,  opts?: {allowEmpty: boolean}): PointArray => member.days.reduce((acc, day) => {
     const {allowEmpty = false} = (opts ?? {});
     if (acc === undefined) {
         return [day.score];
@@ -483,38 +504,38 @@ const getDayPoints = (member, opts) => member.days.reduce((acc, day) => {
                 : allowEmpty ? 0 : undefined;
         return [...acc, score];
     }
-}, undefined)
+}, undefined as void | PointArray) as PointArray
 
 
-function initialize(members) {
+function initialize(members: Member[]) {
 
-    document.getElementById('medals').appendChild(
+    element('medals').appendChild(
         buildMedalGrid(members)
     )
 
-    document.getElementById("show-point-chart").onclick = function() {
-        buildPointChart(document.getElementById('rank-chart'), members);
+    element("show-point-chart").onclick = function() {
+        buildPointChart(element('rank-chart'), members);
     }
-    document.getElementById("show-rank-chart").onclick = function() {
-        buildRankChart(document.getElementById('rank-chart'), members);
+    element("show-rank-chart").onclick = function() {
+        buildRankChart(element('rank-chart'), members);
     }
-    document.getElementById("show-difference-chart").onclick = function() {
-        buildDifferenceChart(document.getElementById('rank-chart'), members);
+    element("show-difference-chart").onclick = function() {
+        buildDifferenceChart(element('rank-chart'), members);
     }
-    document.getElementById('show-average-points-chart').onclick= function() {
-        buildAveragePointsChart(document.getElementById('rank-chart'), members);
+    element('show-average-points-chart').onclick= function() {
+        buildAveragePointsChart(element('rank-chart'), members);
     }
-    document.getElementById('show-sliding-average-chart').onclick = function() {
-        buildRollingAverageChart(document.getElementById('rank-chart'), members);
+    element('show-sliding-average-chart').onclick = function() {
+        buildRollingAverageChart(element('rank-chart'), members);
     }
-    document.getElementById('show-points-by-delta-chart').onclick = function() {
-        buildPointsByDeltaChart(document.getElementById('rank-chart'), members);
+    element('show-points-by-delta-chart').onclick = function() {
+        buildPointsByDeltaChart(element('rank-chart'), members);
     }
 
-    const chartEl = document.getElementById('rank-chart')
+    const chartEl = element('rank-chart')
     buildPointChart(chartEl, members);
 
-    const grid = document.getElementById('ranking-grid');
+    const grid = element('ranking-grid');
     const days = dataByDay(members);
 
     append(grid, [
@@ -541,16 +562,17 @@ function initialize(members) {
     const delay = Math.max(0, 1200 - (Date.now() - PARSE_TIME));
 
     setTimeout(() =>
-        document.getElementById('container').classList.remove('loading')
+        element('container').classList.remove('loading')
     , delay);
 }
 
-function getPosition(day, starIndex, star) {
+function getPosition(day: DataByDayItem, starIndex: number, star: Star | undefined) {
     if (!star) { return -1;}
     if (star.gaveUp) { return -2; }
 
     const sorted = [...day.scores]
         .map(member => {
+            // @ts-ignore
             return starDuration(member[`star${starIndex}`])
         })
     .sort((l, r) => l - r);
@@ -558,19 +580,19 @@ function getPosition(day, starIndex, star) {
     return sorted.indexOf(star.duration);
 }
 
-function starDuration(star) {
+function starDuration(star: Star | undefined) {
     if (!star) return Number.MAX_SAFE_INTEGER;
     if (star.gaveUp) return Number.MAX_SAFE_INTEGER / 2 + star.duration;
     return star.duration;
 }
 
-function showStatsForDay(day) {
+function showStatsForDay(day: DataByDayItem) {
 
-    const el = document.getElementById('speed-grid');
+    const el = element('speed-grid');
     while(el.firstChild)
-        el.removeChild(el.lastChild);
+        el.removeChild(el.lastChild!);
 
-    document.getElementById('day').innerText = `Day ${day.day + 1}`;
+    element('day').innerText = `Day ${day.day + 1}`;
 
     const sorted = [...day.scores].sort((l, r) => {
 
@@ -584,8 +606,8 @@ function showStatsForDay(day) {
             : l2 - r2;
     });
 
-    const getDelta = (d) => {
-        const t1 = d.star1?.timestamp;
+    const getDelta = (d: MemberDay) => {
+        const t1 = d.star1?.timestamp!;
         const t2 = d.star2?.timestamp;
         return t2 ? t2 - t1 : undefined;
     }
@@ -603,7 +625,7 @@ function showStatsForDay(day) {
     });
 }
 
-function fastestScore(scores, star) {
+function fastestScore(scores: DataByDayScore[], star: number) {
     if (scores.length === 0) {
         return null;
     }
@@ -624,7 +646,7 @@ function fastestScore(scores, star) {
     return sorted[0];
 }
 
-function buildMedalGrid(members) {
+function buildMedalGrid(members: Member[]) {
     const el = div({class: 'medal-grid'});
     members = [...members].sort(membersByTotalScore);
 
@@ -658,7 +680,7 @@ function buildMedalGrid(members) {
 
             const star = starTrophy(star2);
             const strokeColor = ['gold', 'silver', '#cd7f32'][pos1] ?? 'transparent';
-            star.style['background-color'] = strokeColor;
+            star.style.backgroundColor = strokeColor;
 
             // Add a border if they finished part 1 (but didn't place) and haven't finished part 2
             const borderColor = (pos2 !== -1 || pos1 <= 2) ? 'transparent' : 'rgba(0,0,0,0.2)';
@@ -706,14 +728,20 @@ function buildMedalGrid(members) {
     return el;
 }
 
-function medalsForDay(day, position) {
+function medalsForDay(day: MemberDay, position: number) {
     return (isPosition(day.star1, position) ? 1 : 0) + (isPosition(day.star2, position) ? 1 : 0)
 }
-function isPosition(star, target) {
+function isPosition(star: Star | undefined, target: number) {
     return star?.position === target;
 }
 
-function dataByDay(members) {
+type DataByDayItem = {
+    day: number,
+    scores: DataByDayScore[]
+}
+type DataByDayScore = (MemberDay & {name: string});
+
+function dataByDay(members: Member[]): DataByDayItem[] {
     return range(25)
         .map(day => ({
             day,
@@ -724,20 +752,20 @@ function dataByDay(members) {
         })).filter(d => d.scores.length > 0);
 }
 
-function range(to) {
+function range(to: number) {
     return Array.from(new Array(to), (x, i) => i)
 }
 
-function getStarTimestamp(member, day, star) {
-    const text = get(member, ['completion_day_level', day, star, 'get_star_ts']);
+function getStarTimestamp(member: AocMember, day: number, star: number) {
+    const text = get(member, ['completion_day_level', String(day), String(star), 'get_star_ts']) as string | undefined;
     return text ? parseInt(text, 10) * 1000 : undefined;
 }
 
-const FIRST_DAY_TS = 1606780800000; // 2020-12-02T00:00:00-5:00
+const FIRST_DAY_TS = 1606798800000; // 2020-12-02T00:00:00-5:00
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 const OFFSET_930 = (9 * 60 + 30) * 60 * 1000;
 
-function getDayStartTime(day, ts) {
+function getDayStartTime(day: number, ts?: number) {
     if (!ts) return undefined;
 
     if(day === 25) return 1609009200000; //2020-12-26 2pm
@@ -749,18 +777,19 @@ function getDayStartTime(day, ts) {
         : startOfDay;
 }
 
-function formatStarTime(star) {
+function formatStarTime(star: Star | undefined) {
     if (!star || !star.duration) return '';
     return formatDuration(star.duration)
 }
 
-function formatDuration(duration) {
+function formatDuration(duration: number | undefined) {
     if (duration == null) return '';
     return Duration.fromMillis(duration).toFormat('hh:mm:ss');
 }
 
-function get(obj, keys) {
+function get(obj: {}, keys: string[]): unknown {
     for(let key of keys) {
+        // @ts-ignore
         obj = obj[key];
         if (obj == null) {
             return undefined;
@@ -769,32 +798,40 @@ function get(obj, keys) {
     return obj;
 }
 
-function text(value) {
+function text(value: string | number) {
     return document.createTextNode(String(value));
 }
 
-function node(tag, props, children) {
+type NodeProps = {
+    class?: string,
+    style?: string | {},
+    onclick?: Function,
+}
+function node(tag: string, props: NodeProps, children?: any) {
     const el = document.createElement(tag);
     props && Object.entries(props).forEach(([key, value]) => {
         if (key.startsWith('on')) {
+            // @ts-ignore
             el[key] = value;
         } else if (key === 'style' && typeof value !== 'string') {
+            // @ts-ignore
             Object.entries(value).forEach(([key, value]) =>
+                // @ts-ignore
                 el.style[key] = value
             )
         } else {
-            el.setAttribute(key, value);
+            el.setAttribute(key, value as string);
         }
     });
     children && append(el, children);
     return el;
 }
-
-function div(props, children) {
+type NodeChildren = string | HTMLElement | Text | (HTMLElement)[];
+function div(props: any, children?: NodeChildren) {
     return node('div', props, children);
 }
 
-function append(target, children) {
+function append(target: HTMLElement, children?: NodeChildren) {
     if (!children) return;
     if (typeof children === 'string')
         target.appendChild(text(children));
@@ -812,21 +849,22 @@ function createTrophy() {
     container.innerHTML = `
         <svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="star" class="svg-inline--fa fa-star fa-w-18" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path fill="currentColor" d="M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z"></path></svg>
     `
-    return container.firstElementChild;
+    return container.firstElementChild!;
 }
 
-function removeChildren(el) {
+function removeChildren(el: HTMLElement) {
     while(el.firstChild)
-        el.removeChild(el.lastChild);
+        el.removeChild(el.lastChild!);
 }
 
-function starTrophy(star, props) {
+function starTrophy(star: Star | undefined, props?: NodeProps) {
     if (!star) return div({class: 'trophy'});
     if (star.gaveUp) return div({class: 'trophy dnf'}, text('DNF'));
     return trophy(star.position, props);
 }
 
-function trophy(position, props) {
+function trophy(position: number | undefined, props?: NodeProps) {
+    if (position == null) return div({class: 'trophy'});
     if (position === -1) return div({class: 'trophy'});
     if (position === -2) return div({class: 'trophy'}, text('DNF'));
     if (position < 0 || position > 2) return div({class: 'trophy'});
@@ -842,7 +880,7 @@ function trophy(position, props) {
     return el;
 }
 
-function didGiveUp(member, day, star) {
+function didGiveUp(member: Member, day: number, star: number) {
     return !!get(disqualified, [member.name, String(day), String(star)])
 }
 

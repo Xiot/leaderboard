@@ -20,6 +20,9 @@
     "luxon": "^1.25.0"
   },
   "devDependencies": {
-    "snowpack": "^2.18.5"
+    "@types/chart.js": "^2.9.29",
+    "@types/luxon": "^1.25.0",
+    "snowpack": "^2.18.5",
+    "typescript": "^4.1.3"
   }
 }
