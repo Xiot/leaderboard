@@ -48,7 +48,7 @@ function transformData(input: AocLeaderboard) {
     applyOverrides(members);
     populatePositions(members);
     calculateLocalScore(members);
-console.log(members);
+
     return members;
 }
 
@@ -131,15 +131,12 @@ function calculateLocalScore(members: Member[]) {
 
     for (let i = 0; i < members.length; i++) {
         let sum = 0;
-        let lastCompleted = -1;
         range(25).forEach(dayIndex => {
 
             const day = members[i].days[dayIndex];
-            // if (!day) return;
             const star1 = positionScore(day.star1);
             const star2 = positionScore(day.star2);
             sum += star1 + star2;
-            // console.log(members[i].name, dayIndex, day, star1, star2)
             day.score = star1 + star2;
         })
         members[i].score = sum;
@@ -171,11 +168,6 @@ function buildMemberDayStats(member: AocMember, day: number): MemberDay {
     const star1Timestamp = getStarTimestamp(member, day, 1);
     const star2Timestamp = getStarTimestamp(member, day, 2);
     const startTime = getDayStartTime(day, star1Timestamp);
-
-    if (member.name === 'Chris Thomas' && day === 4) {
-        console.log(startTime)
-        console.log(1607058000000)
-    }
 
     const buildStar = (ts: number | void, startTime: number | void, star: number) => {
         if (!ts || !startTime) { return undefined; }
