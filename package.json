@@ -11,8 +11,7 @@
     "clean": "rm -rf ./dist/*",
     "build": "snowpack build",
     "dev": "snowpack dev",
-    "build-ws": "esbuild ./view.js --sourcemap --format=esm --target=chrome87 --outdir=./dist --metafile=./dist/meta.json",
-    "dev-wds": "web-dev-server --config ./.dev-server.mjs",
+    "type-check": "tsc --noEmit",
     "local-certs": "npx devcert-cli generate localhost && mv localhost.key snowpack.key && mv localhost.cert snowpack.crt"
   },
   "dependencies": {
