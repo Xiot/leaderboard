@@ -10,6 +10,9 @@
   "scripts": {
     "clean": "rm -rf ./dist/*",
     "build": "snowpack build",
+    "build:server": "esbuild src/server/index.ts --platform=node --sourcemap --format=esm --outdir=dist/server --charset=utf8 && cp ./src/server/package.json ./dist/server/package.json && cp -r ./src/server/data/ ./dist/server/data/",
+    "dev:server": "nodemon",
+    "dev:server:run": "yarn build:server && node ./dist/server/index.js",
     "dev": "snowpack dev",
     "lint": "eslint src/**/*",
     "lint:fix": "yarn lint --fix",
@@ -17,11 +20,18 @@
   },
   "dependencies": {
     "chart.js": "^2.9.4",
-    "luxon": "^1.25.0"
+    "fastify": "^3.9.2",
+    "fastify-static": "^3.3.0",
+    "luxon": "^1.25.0",
+    "morgan": "^1.10.0",
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "@types/chart.js": "^2.9.29",
     "@types/luxon": "^1.25.0",
+    "@types/morgan": "^1.9.2",
+    "@types/node": "^14.14.16",
+    "@types/node-fetch": "^2.5.7",
     "@typescript-eslint/eslint-plugin": "^4.11.0",
     "@typescript-eslint/parser": "^4.11.0",
     "eslint": "^7.16.0",
@@ -32,6 +42,8 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.3.0",
     "eslint-plugin-promise": "^4.2.1",
+    "nodemon": "^2.0.6",
+    "pino-pretty": "^4.3.0",
     "prettier": "^2.2.1",
     "snowpack": "^2.18.5",
     "typescript": "^4.1.3"

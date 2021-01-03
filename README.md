@@ -1,6 +1,23 @@
 # xiot.github.io
 website
 
+# Development
+```
+yarn install
+yarn local-certs
+```
+Run Server
+```
+yarn dev:server
+```
+Run Client
+```
+yarn dev
+```
+
+expand build scripts.
+- something like https://github.com/a7ul/esbuild-node-tsc
+
 # Planned Changes
 1. Factor out score calculation from graphs
   - Allow single and multiple scores/medals per day

@@ -10,14 +10,14 @@ const PARSE_TIME = Date.now();
 
 // import {stats} from 'https://portal.xiot.ca/aoc-2020.js'
 const statsJsonUriLocal = 'https://raw.githubusercontent.com/Xiot/xiot.github.io/master/2020.json';
-const statsJsonUri = 'https://portal.xiot.ca/aoc-2020.json';
+const statsJsonUri = '/api/aoc/682929/2020'; //'https://portal.xiot.ca/aoc-2020.json';
 const trophySvg = createTrophy();
 
 window.onload = load;
 
 const dataFetch = fetch(statsJsonUri)
-  .then(response => response.json())
-  .catch(() => fetch(statsJsonUriLocal));
+  .catch(() => fetch(statsJsonUriLocal))
+  .then(response => response.json());
 
 function element(id: string): HTMLElement {
   return document.getElementById(id) as HTMLElement;

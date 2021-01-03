@@ -1,0 +1,6 @@
+{
+  "watch": ["src/server"],
+  "ignore": ["src/server/**/*.spec.ts"],
+  "ext": "ts,js,json",
+  "exec": "yarn dev:server:run"
+}
