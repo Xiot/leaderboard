@@ -16,24 +16,24 @@
     "local-certs": "npx devcert-cli generate localhost && mv localhost.key snowpack.key && mv localhost.cert snowpack.crt"
   },
   "dependencies": {
-    "chart.js": "^2.9.4",
-    "luxon": "^1.25.0"
+    "chart.js": "^3.6.0",
+    "luxon": "^2.1.1"
   },
   "devDependencies": {
     "@types/chart.js": "^2.9.29",
-    "@types/luxon": "^1.25.0",
-    "@typescript-eslint/eslint-plugin": "^4.11.0",
-    "@typescript-eslint/parser": "^4.11.0",
-    "eslint": "^7.16.0",
-    "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-config-prettier": "^7.1.0",
+    "@types/luxon": "^2.0.7",
+    "@typescript-eslint/eslint-plugin": "^5.4.0",
+    "@typescript-eslint/parser": "^5.4.0",
+    "eslint": "^8.3.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^8.3.0",
     "eslint-config-standard": "^16.0.2",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^3.3.0",
-    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-promise": "^5.1.1",
     "prettier": "^2.2.1",
-    "snowpack": "^2.18.5",
+    "snowpack": "^3.8.8",
     "typescript": "^4.1.3"
   }
 }
