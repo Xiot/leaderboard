@@ -3,7 +3,13 @@ module.exports = {
   exclude: ['**/scripts/**/*', '**/src/server/**/*'],
   installOptions: {
     sourceMap: true,
-    externalPackage: ['@web/dev-server', '@web/dev-server-core'],
+    packageOptions: {
+      sourcemap: true,
+      external: [
+        "@web/dev-server",
+        "@web/dev-server-core"
+      ]
+    }
   },
   devOptions: {
     port: 3001,
@@ -13,8 +19,8 @@ module.exports = {
   },
   buildOptions: {
     out: 'dist/client',
-    metaDir: 'meta/snowpack',
-    sourceMaps: true,
+    metaUrlPath: 'meta/snowpack',
+    sourcemap: true,
     clean: true,
   },
   mount: {

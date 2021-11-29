@@ -4,4 +4,7 @@ dist/
 
 snowpack.key
 snowpack.crt
+
 tsconfig.tsbuildinfo
+
+yarn-error.log
