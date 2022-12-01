@@ -1,12 +1,30 @@
 /* eslint-env browser */
 
 import { Duration } from 'luxon';
-import { Chart, LineController, CategoryScale, LinearScale, PointElement, LineElement, Title, Legend, Tooltip } from 'chart.js';
+import {
+  Chart,
+  LineController,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Legend,
+  Tooltip,
+} from 'chart.js';
 
 import { fallback, range } from './utils';
 import { transformData } from './standings';
 import { append, div, element, node, NodeProps, text } from './dom';
-import {buildAveragePointsChart, buildDifferenceChart, buildPointChart, buildPointsByDeltaChart, buildRankChart, buildRollingAverageChart, buildPointsPerDayChart} from './charts';
+import {
+  buildAveragePointsChart,
+  buildDifferenceChart,
+  buildPointChart,
+  buildPointsByDeltaChart,
+  buildRankChart,
+  buildRollingAverageChart,
+  buildPointsPerDayChart,
+} from './charts';
 import { membersByTotalScore } from './sort';
 
 import { overrideChristmasPresent, overrideStartTime, overrideDisqualified } from './rules';
@@ -16,16 +34,16 @@ import type { Member, MemberDay, Star } from './types';
 const OFFSET_930 = (9 * 60 + 30) * 60 * 1000;
 const PARSE_TIME = Date.now();
 
-// import {stats} from 'https://portal.xiot.ca/aoc-2020.js'
-const statsJsonUriLocal = 'https://raw.githubusercontent.com/Xiot/xiot.github.io/master/2020.json';
-const statsJsonUri = '/api/aoc/682929/2020'; //'https://portal.xiot.ca/aoc-2020.json';
+const statsJsonUriGithub = 'https://raw.githubusercontent.com/Xiot/xiot.github.io/master/2020.json';
+const statsJsonUriLocal = '/api/aoc/682929/2020';
+const statsJsonUriPortal = 'https://portal.xiot.ca/aoc-2020.json';
 const trophySvg = createTrophy();
 
 Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Title, Legend, Tooltip);
 
 window.onload = load;
 
-const dataSources = [statsJsonUriLocal, statsJsonUri]
+const dataSources = [statsJsonUriLocal, statsJsonUriPortal, statsJsonUriGithub];
 const dataFetch = fallback(dataSources.map(url => () => fetch(url).then(r => r.json())));
 
 function load() {
@@ -33,12 +51,16 @@ function load() {
     element('root').classList.add('phone');
   }
 
-  dataFetch.then(data => transformData(2020, data, [
-    overrideStartTime(2020, OFFSET_930),
-    overrideDisqualified('Chris Thomas', 13, 2),
-    overrideDisqualified('S. Sepehr', 13, 2),
-    overrideChristmasPresent(),
-  ])).then(initialize);
+  dataFetch
+    .then(data =>
+      transformData(2020, data, [
+        overrideStartTime(2020, OFFSET_930),
+        overrideDisqualified('Chris Thomas', 13, 2),
+        overrideDisqualified('S. Sepehr', 13, 2),
+        overrideChristmasPresent(),
+      ]),
+    )
+    .then(initialize);
 }
 
 function initialize(members: Member[]) {
@@ -269,8 +291,6 @@ function dataByDay(members: Member[]): DataByDayItem[] {
     }))
     .filter(d => d.scores.length > 0);
 }
-
-
 
 function formatStarTime(star: Star | undefined) {
   if (!star || !star.duration) return '';

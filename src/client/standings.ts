@@ -1,4 +1,3 @@
-
 import { range, get, last, midnightMs } from './utils';
 import { byNumber } from './sort';
 
@@ -9,7 +8,7 @@ export function transformData(year: number, input: AocLeaderboard, overrides: Ov
   const members = Object.values(input.members)
     .map(member => transformMemberData(member, year))
     .filter(x => x.lastAttempted >= 0);
-  
+
   members.forEach(m => {
     overrides.forEach(fn => fn(m));
   });
@@ -44,19 +43,21 @@ function getStarTimestamp(member: AocMember, day: number, star: number) {
 function buildMemberDayStats(member: AocMember, year: number, day: number): MemberDay {
   const star1Timestamp = getStarTimestamp(member, day, 1);
   const star2Timestamp = getStarTimestamp(member, day, 2);
-  
+
   const startTime = midnightMs(year, 12, day);
 
   const buildStar = (ts: number | void, star: number) => {
     if (!ts) {
       return undefined;
     }
-    
+
     return {
       index: star,
       timestamp: ts,
       startTime,
-      get duration() { return this.timestamp - this.startTime},
+      get duration() {
+        return this.timestamp - this.startTime;
+      },
     };
   };
 
@@ -138,7 +139,6 @@ export const getDayPoints = (member: Member, opts?: { allowEmpty: boolean }): Po
       return [...acc, score];
     }
   }, null as null | PointArray) as PointArray;
-
 
 export const avgLast = (arr: PointArray, index: number, count = 5) => {
   const actualCount = index + 1 < count ? index + 1 : count;

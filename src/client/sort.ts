@@ -1,4 +1,4 @@
-import type {Member} from './types';
+import type { Member } from './types';
 
 export function byNumber(l: number | void | null, r: number | void | null) {
   if (l == null && r == null) return 0;

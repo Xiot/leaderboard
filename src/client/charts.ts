@@ -1,12 +1,11 @@
-
-import {range, minOf} from './utils';
+import { range, minOf } from './utils';
 import { byNumberReverse } from './sort';
 import { element } from './dom';
 import { getPoints, getDayPoints, avgLast } from './standings';
-import {Chart} from 'chart.js';
+import { Chart } from 'chart.js';
 
-import type {Member} from './types';
-import type {ChartConfiguration} from 'chart.js';
+import type { Member } from './types';
+import type { ChartConfiguration } from 'chart.js';
 
 let activeChart: Chart | void = undefined;
 
@@ -32,35 +31,34 @@ export function createChart(title: string, config: ChartConfiguration) {
       maintainAspectRatio: false,
       plugins: {
         title: { display: true, text: title, padding: 20 },
-        legend: { 
-          display: true, 
-          position: 'left',          
+        legend: {
+          display: true,
+          position: 'left',
           labels: {
             boxHeight: 4,
             generateLabels: chart => {
-              const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart)
-                .map(label => ({
-                  ...label, 
-                  fillStyle: label.strokeStyle,  
-                  lineWidth: 0,                
-                }));              
+              const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart).map(label => ({
+                ...label,
+                fillStyle: label.strokeStyle,
+                lineWidth: 0,
+              }));
               return labels;
-            }
-          }
+            },
+          },
         },
         tooltip: {
           callbacks: {
             labelColor: ctx => {
               // @ts-ignore - base types seem incorrect
-              const base = Chart.defaults.plugins.tooltip.callbacks.labelColor(ctx);              
+              const base = Chart.defaults.plugins.tooltip.callbacks.labelColor(ctx);
               base.backgroundColor = base.borderColor;
               base.borderWidth = 2;
-              return base; 
-            }
-          }
-        }
+              return base;
+            },
+          },
+        },
       },
-      
+
       ...config.options,
     },
   }));
@@ -147,13 +145,12 @@ export function buildRankChart(el: HTMLElement, members: Member[]) {
     },
     options: {
       scales: {
-        yAxis: 
-          {
-            display: false,
-            ticks: {
-              stepSize: 1,
-            },
-          },        
+        yAxis: {
+          display: false,
+          ticks: {
+            stepSize: 1,
+          },
+        },
       },
     },
   });
@@ -183,7 +180,7 @@ export function buildPointsPerDayChart(el: HTMLElement, members: Member[]) {
   createChart('Points Per Day', {
     type: 'line',
     data: {
-      labels: range(25).map(x => String(x +1)),
+      labels: range(25).map(x => String(x + 1)),
       datasets: members.map((m, i) => {
         return {
           label: m.name,
@@ -192,10 +189,10 @@ export function buildPointsPerDayChart(el: HTMLElement, members: Member[]) {
           borderColor: colors[i],
           lineTension: 0,
           spanGaps: true,
-        }
-      })
-    }
-  })
+        };
+      }),
+    },
+  });
 }
 
 export function buildPointsByDeltaChart(el: HTMLElement, members: Member[]) {

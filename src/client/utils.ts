@@ -1,20 +1,17 @@
-import { DateTime } from "luxon";
+import { DateTime } from 'luxon';
 
-
-export async function fallback<T = any>(promises: Array<() => Promise<T>>) {
-  
+export async function fallback<T = unknown>(promises: Array<() => Promise<T>>) {
   const errors = [];
-  for(let i = 0; i < promises.length; i++) {
+  for (let i = 0; i < promises.length; i++) {
     try {
       return await promises[i]();
-    } catch(ex) {
+    } catch (ex) {
       // ignore
       errors.push(ex);
     }
   }
   throw new Error('all promises rejected');
 }
-
 
 export function range(to: number) {
   return Array.from(new Array(to), (x, i) => i);
@@ -28,11 +25,10 @@ export function get<T = unknown>(obj: Record<string, unknown>, keys: string[]): 
       return undefined;
     }
   }
-  return obj as any;
+  return obj as T;
 }
 
 export const last = <T>(arr: T[]): T => arr[arr.length - 1];
-
 
 type Comparable = undefined | number | string;
 export function minOf<T>(arr: T[]): T;
@@ -58,11 +54,14 @@ export function minOf<T, K extends Comparable>(arr: T[], accessor: (item: T) => 
 }
 
 export function midnightMs(year: number, month: number, day: number) {
-  return DateTime.fromObject({
-    year,
-    month,
-    day,
-  }, {
-    zone: 'America/Toronto'
-  }).toMillis();
+  return DateTime.fromObject(
+    {
+      year,
+      month,
+      day,
+    },
+    {
+      zone: 'America/Toronto',
+    },
+  ).toMillis();
 }
